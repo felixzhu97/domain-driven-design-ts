@@ -3,18 +3,20 @@
  */
 export interface DatabaseConfig {
   type: "memory" | "postgresql" | "mysql" | "mongodb";
-  host?: string;
-  port?: number;
-  database?: string;
-  username?: string;
-  password?: string;
-  ssl?: boolean;
-  connectionPool?: {
-    min: number;
-    max: number;
-    acquireTimeoutMillis?: number;
-    idleTimeoutMillis?: number;
-  };
+  host?: string | undefined;
+  port?: number | undefined;
+  database?: string | undefined;
+  username?: string | undefined;
+  password?: string | undefined;
+  ssl?: boolean | undefined;
+  connectionPool?:
+    | {
+        min: number;
+        max: number;
+        acquireTimeoutMillis?: number | undefined;
+        idleTimeoutMillis?: number | undefined;
+      }
+    | undefined;
 }
 
 /**
@@ -77,8 +79,8 @@ export class DatabaseConfigFactory {
           host: process.env.DB_HOST || "localhost",
           port: parseInt(process.env.DB_PORT || "27017"),
           database: process.env.DB_NAME || "ddd_app",
-          username: process.env.DB_USER,
-          password: process.env.DB_PASSWORD,
+          username: process.env.DB_USER || undefined,
+          password: process.env.DB_PASSWORD || undefined,
           ssl: process.env.DB_SSL === "true",
         };
 

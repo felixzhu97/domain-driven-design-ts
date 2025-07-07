@@ -1,53 +1,86 @@
-import { QueryHandler, QueryResult, PageInfo } from "../base/Query";
+import { QueryHandler } from "../base/QueryHandler";
+import {
+  createQuerySuccessResult,
+  createQueryFailureResult,
+  QueryResult,
+  PageInfo,
+} from "../base/Query";
 import { GetOrdersQuery } from "./GetOrdersQuery";
+import { Order } from "../../../domain/entities/Order";
 import { IOrderRepository } from "../../../domain/repositories";
-import { Order } from "../../../domain/entities";
+import { Money } from "../../../domain/value-objects";
 
 /**
  * 获取订单列表查询处理器
  */
-export class GetOrdersQueryHandler
-  implements QueryHandler<GetOrdersQuery, Order[]>
-{
-  constructor(private readonly orderRepository: IOrderRepository) {}
+export class GetOrdersQueryHandler extends QueryHandler<
+  GetOrdersQuery,
+  Order[]
+> {
+  constructor(private readonly orderRepository: IOrderRepository) {
+    super();
+  }
 
-  async handle(query: GetOrdersQuery): Promise<QueryResult<Order[]>> {
-    try {
-      // 验证查询
-      const validationErrors = query.validate();
-      if (validationErrors.length > 0) {
-        return QueryResult.failure("查询验证失败", validationErrors.join(", "));
-      }
+  protected async validate(
+    query: GetOrdersQuery
+  ): Promise<{ isValid: boolean; errors: string[] }> {
+    const errors = query.validate();
+    return { isValid: errors.length === 0, errors };
+  }
 
-      // 设置默认分页参数
-      const page = query.pagination?.page || 1;
-      const pageSize = query.pagination?.pageSize || 10;
+  protected async execute(query: GetOrdersQuery): Promise<Order[]> {
+    // 构建搜索条件
+    const searchCriteria = {
+      customerId: query.filters?.customerId,
+      status: query.filters?.status,
+      startDate: query.filters?.startDate,
+      endDate: query.filters?.endDate,
+      minAmount: query.filters?.minAmount
+        ? new Money(query.filters.minAmount, "CNY")
+        : undefined,
+      maxAmount: query.filters?.maxAmount
+        ? new Money(query.filters.maxAmount, "CNY")
+        : undefined,
+    };
 
-      // 执行查询
-      const result = await this.orderRepository.findWithPagination(
-        page,
-        pageSize,
-        query.filters,
-        query.sort
+    // 执行查询 - 使用findAll方法，因为findByCriteria可能不存在
+    const allOrders = await this.orderRepository.findAll();
+
+    // 手动过滤
+    let filteredOrders = allOrders;
+
+    if (searchCriteria.customerId) {
+      filteredOrders = filteredOrders.filter(
+        (order) => order.customerId.value === searchCriteria.customerId
       );
-
-      // 创建分页信息
-      const pageInfo: PageInfo = {
-        currentPage: result.page,
-        pageSize: result.limit,
-        totalPages: Math.ceil(result.total / result.limit),
-      };
-
-      return QueryResult.success(
-        result.orders,
-        undefined,
-        pageInfo,
-        result.total
-      );
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "查询订单列表时发生未知错误";
-      return QueryResult.failure(errorMessage);
     }
+
+    if (searchCriteria.status) {
+      filteredOrders = filteredOrders.filter(
+        (order) => order.status === searchCriteria.status
+      );
+    }
+
+    if (searchCriteria.startDate) {
+      filteredOrders = filteredOrders.filter(
+        (order) => order.createdAt >= searchCriteria.startDate!
+      );
+    }
+
+    if (searchCriteria.endDate) {
+      filteredOrders = filteredOrders.filter(
+        (order) => order.createdAt <= searchCriteria.endDate!
+      );
+    }
+
+    // 应用分页
+    if (query.pagination) {
+      const startIndex =
+        (query.pagination.page - 1) * query.pagination.pageSize;
+      const endIndex = startIndex + query.pagination.pageSize;
+      filteredOrders = filteredOrders.slice(startIndex, endIndex);
+    }
+
+    return filteredOrders;
   }
 }

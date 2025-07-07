@@ -103,7 +103,7 @@ export class UserApplicationService {
       const newEmail = new Email(updates.email);
       // 检查新邮箱是否已被其他用户使用
       const existingUser = await this.userRepository.findByEmail(newEmail);
-      if (existingUser && !existingUser.id.equals(userId)) {
+      if (existingUser && existingUser.id.value !== userId.value) {
         throw new Error("该邮箱已被其他用户使用");
       }
       user.changeEmail(newEmail);

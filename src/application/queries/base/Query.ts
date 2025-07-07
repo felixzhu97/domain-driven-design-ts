@@ -38,11 +38,11 @@ export abstract class Query implements IQuery {
  */
 export interface QueryResult<T = any> {
   success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-  totalCount?: number;
-  pageInfo?: PageInfo;
+  data?: T | undefined;
+  error?: string | undefined;
+  message?: string | undefined;
+  pageInfo?: PageInfo | undefined;
+  totalCount?: number | undefined;
 }
 
 /**
@@ -76,7 +76,10 @@ export interface SortParams {
  * 查询结果工具类
  */
 export class QueryResultHelper {
-  static success<T>(
+  /**
+   * 创建成功结果
+   */
+  public static success<T>(
     data: T,
     message?: string,
     pageInfo?: PageInfo,
@@ -91,7 +94,10 @@ export class QueryResultHelper {
     };
   }
 
-  static failure(error: string): QueryResult {
+  /**
+   * 创建失败结果
+   */
+  public static failure(error: string): QueryResult<any> {
     return {
       success: false,
       error,
@@ -100,35 +106,41 @@ export class QueryResultHelper {
 }
 
 /**
- * 创建成功查询结果
+ * 创建成功的查询结果
  */
 export function createQuerySuccessResult<T>(
   data: T,
   message?: string,
-  totalCount?: number,
-  pageInfo?: PageInfo
+  pageInfo?: PageInfo,
+  totalCount?: number
 ): QueryResult<T> {
-  const result: QueryResult<T> = {
+  return {
+    success: true,
+    data,
+    message,
+    pageInfo,
+    totalCount,
+  };
+}
+
+/**
+ * 创建简单成功的查询结果
+ */
+export function createSimpleQuerySuccessResult<T>(
+  data: T,
+  message?: string
+): QueryResult<T> {
+  return {
     success: true,
     data,
     message,
   };
-
-  if (totalCount !== undefined) {
-    result.totalCount = totalCount;
-  }
-
-  if (pageInfo) {
-    result.pageInfo = pageInfo;
-  }
-
-  return result;
 }
 
 /**
- * 创建失败查询结果
+ * 创建失败的查询结果
  */
-export function createQueryFailureResult(error: string): QueryResult {
+export function createQueryFailureResult(error: string): QueryResult<any> {
   return {
     success: false,
     error,

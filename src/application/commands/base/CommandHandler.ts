@@ -5,7 +5,7 @@ import {
 } from "./Command";
 
 /**
- * 命令处理器基类
+ * 抽象命令处理器基类
  */
 export abstract class CommandHandler<TCommand, TResult = any> {
   /**

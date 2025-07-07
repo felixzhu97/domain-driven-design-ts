@@ -15,10 +15,10 @@ export enum ConnectionStatus {
  */
 export interface ConnectionInfo {
   status: ConnectionStatus;
-  connectedAt?: Date;
-  lastError?: Error;
-  activeConnections?: number;
-  maxConnections?: number;
+  connectedAt?: Date | undefined;
+  lastError?: Error | undefined;
+  activeConnections?: number | undefined;
+  maxConnections?: number | undefined;
 }
 
 /**

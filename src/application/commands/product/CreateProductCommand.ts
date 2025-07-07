@@ -33,4 +33,43 @@ export class CreateProductCommand extends Command {
       this.weight = data.weight;
     }
   }
+
+  /**
+   * 验证命令
+   */
+  validate(): string[] {
+    const errors: string[] = [];
+
+    if (!this.name || this.name.trim().length === 0) {
+      errors.push("商品名称不能为空");
+    }
+
+    if (!this.description || this.description.trim().length === 0) {
+      errors.push("商品描述不能为空");
+    }
+
+    if (!this.sku || this.sku.trim().length === 0) {
+      errors.push("商品SKU不能为空");
+    }
+
+    if (!this.category) {
+      errors.push("商品分类不能为空");
+    }
+
+    if (!this.price) {
+      errors.push("商品价格不能为空");
+    } else if (this.price.amount <= 0) {
+      errors.push("商品价格必须大于0");
+    }
+
+    if (this.initialStock < 0) {
+      errors.push("库存数量不能为负数");
+    }
+
+    if (this.weight !== undefined && this.weight <= 0) {
+      errors.push("商品重量必须大于0");
+    }
+
+    return errors;
+  }
 }

@@ -1,4 +1,8 @@
-import { IQuery, QueryResult, PageInfo } from "./Query";
+import {
+  QueryResult,
+  createQuerySuccessResult,
+  createQueryFailureResult,
+} from "./Query";
 
 /**
  * 查询处理器接口
@@ -10,77 +14,47 @@ export interface IQueryHandler<TQuery extends IQuery, TResult = any> {
 /**
  * 查询处理器基类
  */
-export abstract class QueryHandler<TQuery extends IQuery, TResult = any>
-  implements IQueryHandler<TQuery, TResult>
-{
-  public abstract handle(query: TQuery): Promise<QueryResult<TResult>>;
-
+export abstract class QueryHandler<TQuery, TResult = any> {
   /**
-   * 验证查询
+   * 处理查询
    */
-  protected abstract validateQuery(query: TQuery): string[];
-
-  /**
-   * 执行查询
-   */
-  protected abstract executeQuery(query: TQuery): Promise<TResult>;
-
-  /**
-   * 处理查询的通用流程
-   */
-  protected async processQuery(query: TQuery): Promise<QueryResult<TResult>> {
+  public async handle(query: TQuery): Promise<QueryResult<TResult>> {
     try {
-      // 1. 验证查询
-      const validationErrors = this.validateQuery(query);
-      if (validationErrors.length > 0) {
-        return {
-          success: false,
-          error: "查询验证失败: " + validationErrors.join(", "),
-        };
+      // 验证查询
+      const validationResult = await this.validate(query);
+      if (!validationResult.isValid) {
+        return createQueryFailureResult(validationResult.errors.join(", "));
       }
 
-      // 2. 执行查询
-      const result = await this.executeQuery(query);
-
-      // 3. 返回成功结果
-      return {
-        success: true,
-        data: result,
-      };
+      // 执行查询
+      const result = await this.execute(query);
+      return createQuerySuccessResult(result, "查询执行成功");
     } catch (error) {
-      // 4. 处理异常
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "未知错误",
-      };
+      const errorMessage =
+        error instanceof Error ? error.message : "查询执行失败";
+      return createQueryFailureResult(errorMessage);
     }
   }
 
   /**
-   * 创建成功结果
+   * 验证查询
    */
-  protected success<T>(
-    data: T,
-    message?: string,
-    pageInfo?: PageInfo,
-    totalCount?: number
-  ): QueryResult<T> {
-    return {
-      success: true,
-      data,
-      message,
-      pageInfo,
-      totalCount,
-    };
+  protected async validate(
+    query: TQuery
+  ): Promise<{ isValid: boolean; errors: string[] }> {
+    // 默认实现 - 子类可以重写
+    return { isValid: true, errors: [] };
   }
 
   /**
-   * 创建失败结果
+   * 执行查询的具体实现
    */
-  protected failure(error: string): QueryResult {
-    return {
-      success: false,
-      error,
-    };
+  protected abstract execute(query: TQuery): Promise<TResult>;
+
+  /**
+   * 获取处理器名称
+   */
+  public getHandlerName(): string {
+    return this.constructor.name;
   }
 }

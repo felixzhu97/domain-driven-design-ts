@@ -11,4 +11,17 @@ export class GetUserByIdQuery extends Query {
     super();
     this.userId = userId;
   }
+
+  /**
+   * 验证查询
+   */
+  validate(): string[] {
+    const errors: string[] = [];
+
+    if (!this.userId) {
+      errors.push("用户ID不能为空");
+    }
+
+    return errors;
+  }
 }

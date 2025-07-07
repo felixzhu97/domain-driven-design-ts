@@ -60,9 +60,9 @@ export class OrderApplicationService {
         throw new Error(`商品 ${product.name} 不可用`);
       }
 
-      if (product.stockQuantity < item.quantity) {
+      if (product.stock < item.quantity) {
         throw new Error(
-          `商品 ${product.name} 库存不足，当前库存：${product.stockQuantity}`
+          `商品 ${product.name} 库存不足，当前库存：${product.stock}`
         );
       }
 
@@ -103,7 +103,7 @@ export class OrderApplicationService {
     for (const item of data.items) {
       const product = await this.productRepository.findById(item.productId);
       if (product) {
-        product.reduceStock(item.quantity);
+        product.decreaseStock(item.quantity, "订单扣减库存");
         await this.productRepository.save(product);
       }
     }
@@ -138,7 +138,7 @@ export class OrderApplicationService {
       throw new Error("订单不存在");
     }
 
-    order.ship(trackingNumber);
+    order.ship(trackingNumber || "");
     await this.orderRepository.save(order);
 
     return order;
@@ -153,7 +153,7 @@ export class OrderApplicationService {
       throw new Error("订单不存在");
     }
 
-    order.deliver();
+    order.markAsDelivered();
     await this.orderRepository.save(order);
 
     return order;
@@ -169,15 +169,15 @@ export class OrderApplicationService {
     }
 
     // 恢复库存
-    for (const item of order.items) {
+    for (const item of order.orderItems) {
       const product = await this.productRepository.findById(item.productId);
       if (product) {
-        product.increaseStock(item.quantity);
+        product.increaseStock(item.quantity, "订单取消恢复库存");
         await this.productRepository.save(product);
       }
     }
 
-    order.cancel(reason);
+    order.cancel(reason || "");
     await this.orderRepository.save(order);
 
     return order;
@@ -194,7 +194,7 @@ export class OrderApplicationService {
       endDate?: Date;
     }
   ): Promise<Order[]> {
-    return await this.orderRepository.findByCustomerId(customerId, filters);
+    return await this.orderRepository.findByCustomerId(customerId);
   }
 
   /**
@@ -210,7 +210,7 @@ export class OrderApplicationService {
     averageOrderValue: Money;
     statusBreakdown: Record<OrderStatus, number>;
   }> {
-    const orders = await this.orderRepository.findAll(filters);
+    const orders = await this.orderRepository.findAll();
 
     const totalOrders = orders.length;
     let totalAmount = new Money(0, "CNY");

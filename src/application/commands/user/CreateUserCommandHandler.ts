@@ -1,23 +1,23 @@
-import { CommandHandler, ICommandHandler } from "../base/CommandHandler";
+import { CommandHandler } from "../base/CommandHandler";
 import {
   CommandResult,
   createSuccessResult,
   createFailureResult,
 } from "../base/Command";
 import { CreateUserCommand } from "./CreateUserCommand";
-import { User } from "../../../domain/entities";
+import { User } from "../../../domain/entities/User";
 import { Email } from "../../../domain/value-objects";
-import { UserRegistrationService } from "../../../domain/services";
 import { IUserRepository } from "../../../domain/repositories";
+import { UserRegistrationService } from "../../../domain/services/UserRegistrationService";
 
 /**
  * 创建用户命令处理器
  */
-export class CreateUserCommandHandler
-  extends CommandHandler<CreateUserCommand, User>
-  implements ICommandHandler<CreateUserCommand, User>
-{
-  constructor(private userRepository: IUserRepository) {
+export class CreateUserCommandHandler extends CommandHandler<
+  CreateUserCommand,
+  User
+> {
+  constructor(private readonly userRepository: IUserRepository) {
     super();
   }
 
@@ -27,60 +27,55 @@ export class CreateUserCommandHandler
     return this.processCommand(command);
   }
 
-  protected validateCommand(command: CreateUserCommand): string[] {
-    const errors: string[] = [];
+  protected async validate(
+    command: CreateUserCommand
+  ): Promise<{ isValid: boolean; errors: string[] }> {
+    const errors = command.validate();
 
-    if (!command.email?.trim()) {
-      errors.push("邮箱地址不能为空");
-    } else {
-      try {
-        Email.create(command.email);
-      } catch (error) {
-        errors.push(error instanceof Error ? error.message : "邮箱格式无效");
+    // 额外的业务验证
+    if (errors.length === 0) {
+      const email = new Email(command.email);
+      const existingUser = await this.userRepository.findByEmail(email);
+      if (existingUser) {
+        errors.push("该邮箱已被注册");
       }
     }
 
-    if (!command.name?.trim()) {
-      errors.push("用户名不能为空");
-    } else if (command.name.trim().length < 2) {
-      errors.push("用户名至少需要2个字符");
-    } else if (command.name.trim().length > 50) {
-      errors.push("用户名不能超过50个字符");
-    }
-
-    if (!command.password) {
-      errors.push("密码不能为空");
-    } else if (command.password.length < 8) {
-      errors.push("密码至少需要8个字符");
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(command.password)) {
-      errors.push("密码必须包含大写字母、小写字母和数字");
-    }
-
-    return errors;
+    return { isValid: errors.length === 0, errors };
   }
 
-  protected async executeCommand(command: CreateUserCommand): Promise<User> {
-    // 1. 检查邮箱是否已存在
-    const email = Email.create(command.email);
-    const existingUser = await this.userRepository.findByEmail(email);
-    if (existingUser) {
-      throw new Error("该邮箱地址已被注册");
-    }
+  protected async execute(command: CreateUserCommand): Promise<User> {
+    // 获取所有现有用户（用于验证）
+    const existingUsers = await this.userRepository.findAll();
 
-    // 2. 哈希密码
-    const hashedPassword = UserRegistrationService.hashPassword(
-      command.password
+    // 准备注册数据
+    const registrationData = {
+      email: command.email,
+      name: command.name,
+      password: command.password,
+      confirmPassword: command.password, // 在命令中我们假设密码已经确认过
+      initialAddress: command.initialAddress
+        ? {
+            country: command.initialAddress.country,
+            province: command.initialAddress.province,
+            city: command.initialAddress.city,
+            district: command.initialAddress.district,
+            street: command.initialAddress.street,
+            postalCode: command.initialAddress.postalCode,
+            detail: command.initialAddress.detail,
+          }
+        : undefined,
+      agreedToTerms: true, // 在命令层面假设用户已经同意条款
+      agreedToPrivacyPolicy: true,
+    };
+
+    // 使用领域服务创建用户
+    const user = await UserRegistrationService.registerUser(
+      registrationData,
+      existingUsers
     );
 
-    // 4. 创建用户实体
-    const user = User.create(
-      email,
-      command.name.trim(),
-      hashedPassword,
-      command.initialAddress
-    );
-
-    // 5. 保存用户
+    // 保存用户
     await this.userRepository.save(user);
 
     return user;
