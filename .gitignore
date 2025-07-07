@@ -6,3 +6,8 @@ dist
 
 # Environment
 .env
+
+# IDE
+.DS_Store
+.idea
+.vscode

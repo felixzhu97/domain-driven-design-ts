@@ -185,6 +185,10 @@ export class Order extends AggregateRoot {
     return this._status === OrderStatus.PAID;
   }
 
+  public get canBeConfirmed(): boolean {
+    return this._status === OrderStatus.PENDING && this._orderItems.length > 0;
+  }
+
   // 业务方法
   public addItem(orderItem: OrderItem): void {
     if (!this.canBeModified) {

@@ -1,12 +1,14 @@
 import { BaseController, HttpResponse } from "./BaseController";
-import {
-  MemoryOrderRepository,
-  MemoryProductRepository,
-  MemoryUserRepository,
-} from "../../infrastructure/repositories";
-import { OrderService } from "../../domain/services";
+import { MemoryOrderRepository } from "../../infrastructure/repositories/memory";
+import { MemoryProductRepository } from "../../infrastructure/repositories/memory";
+import { MemoryUserRepository } from "../../infrastructure/repositories/memory";
+import { Order, OrderStatus } from "../../domain/entities/Order";
+import { Product } from "../../domain/entities/Product";
+import { User } from "../../domain/entities/User";
+import { OrderService } from "../../domain/services/OrderService";
 import { Money, Address } from "../../domain/value-objects";
 import { OrderItem } from "../../domain/entities";
+import { OrderApplicationService } from "../../application/services/OrderApplicationService";
 
 /**
  * 订单控制器
@@ -63,12 +65,12 @@ export class OrderController extends BaseController {
         }
 
         const unitPrice = product.price;
-        const orderItem = OrderItem.create({
-          productId: product.id,
-          productName: product.name,
-          quantity: item.quantity,
-          unitPrice,
-        });
+        const orderItem = OrderItem.create(
+          product.id,
+          product.name,
+          item.quantity,
+          unitPrice
+        );
 
         orderItems.push(orderItem);
         totalAmount = totalAmount.add(unitPrice.multiply(item.quantity));
@@ -91,28 +93,39 @@ export class OrderController extends BaseController {
         if (customer.addresses.length === 0) {
           return this.badRequest("需要提供配送地址或客户必须有默认地址");
         }
-        shippingAddress = customer.addresses[0];
-      }
-
-      // 创建订单
-      const order = await this.orderService.createOrder({
-        customerId: request.customerId,
-        orderItems,
-        shippingAddress,
-        note: request.note,
-      });
-
-      // 扣减库存
-      for (const item of request.orderItems) {
-        const product = await this.productRepository.findById(item.productId);
-        if (product) {
-          product.decreaseStock(item.quantity);
-          await this.productRepository.save(product);
+        const customerAddress = customer.addresses[0];
+        if (!customerAddress) {
+          return this.badRequest("客户默认地址无效");
         }
+        shippingAddress = customerAddress;
       }
 
-      // 保存订单
-      await this.orderRepository.save(order);
+      // 使用应用服务创建订单
+      const orderApplicationService = new OrderApplicationService(
+        this.orderRepository,
+        this.productRepository,
+        this.userRepository
+      );
+
+      const order = await orderApplicationService.createOrder({
+        customerId: request.customerId,
+        items: request.orderItems.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: 0, // 这里会在服务内部计算
+        })),
+        shippingAddress: {
+          country: shippingAddress.country,
+          province: shippingAddress.province,
+          city: shippingAddress.city,
+          district: shippingAddress.district,
+          street: shippingAddress.street,
+          postalCode: shippingAddress.postalCode,
+          ...(shippingAddress.detail !== undefined && {
+            detail: shippingAddress.detail,
+          }),
+        },
+      });
 
       return this.created(this.mapOrderToResponse(order), "订单创建成功");
     } catch (error) {
@@ -238,7 +251,8 @@ export class OrderController extends BaseController {
         return this.badRequest("订单当前状态不允许取消");
       }
 
-      order.cancel(reason);
+      const cancelReason = reason || "用户取消";
+      order.cancel(cancelReason);
       await this.orderRepository.save(order);
 
       return this.ok(this.mapOrderToResponse(order), "订单取消成功");

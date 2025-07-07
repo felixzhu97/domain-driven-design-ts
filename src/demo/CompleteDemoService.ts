@@ -16,6 +16,7 @@ import {
 import { UserController, ProductController } from "../presentation/controllers";
 
 import { OrderService } from "../domain/services";
+import { OrderApplicationService } from "../application/services";
 
 /**
  * 完整的业务流程演示服务
@@ -266,29 +267,54 @@ export class CompleteDemoService {
       const customer = users[0];
       const selectedProducts = products.slice(0, 2);
 
+      // 验证客户数据
+      if (!customer) {
+        console.log("❌ 客户数据无效");
+        return;
+      }
+
       console.log(`👤 客户: ${customer.name}`);
       console.log(
         `🛍️ 选择商品: ${selectedProducts.map((p) => p.name).join(", ")}`
       );
 
-      // 创建订单项
-      const orderItems: OrderItem[] = [];
-      for (const product of selectedProducts) {
-        const orderItem = OrderItem.create(
-          product.id,
-          product.name,
-          2, // 数量
-          product.price
-        );
-        orderItems.push(orderItem);
+      // 检查客户是否有地址
+      if (!customer.addresses || customer.addresses.length === 0) {
+        console.log("❌ 客户缺少配送地址");
+        return;
       }
 
-      // 使用订单服务创建订单
-      const order = await this.orderService.createOrder({
+      const firstAddress = customer.addresses[0];
+      if (!firstAddress) {
+        console.log("❌ 客户第一个地址无效");
+        return;
+      }
+
+      // 使用订单服务创建订单 - 修改为应用服务调用
+      const orderApplicationService = new OrderApplicationService(
+        this.orderRepository,
+        this.productRepository,
+        this.userRepository
+      );
+
+      const order = await orderApplicationService.createOrder({
         customerId: customer.id,
-        orderItems,
-        shippingAddress: customer.addresses[0],
-        note: "测试订单 - DDD演示",
+        items: selectedProducts.map((product) => ({
+          productId: product.id,
+          quantity: 2,
+          unitPrice: product.price.amount,
+        })),
+        shippingAddress: {
+          country: firstAddress.country,
+          province: firstAddress.province,
+          city: firstAddress.city,
+          district: firstAddress.district,
+          street: firstAddress.street,
+          postalCode: firstAddress.postalCode,
+          ...(firstAddress.detail !== undefined && {
+            detail: firstAddress.detail,
+          }),
+        },
       });
 
       await this.orderRepository.save(order);
@@ -308,7 +334,7 @@ export class CompleteDemoService {
 
         // 发货
         setTimeout(async () => {
-          order.ship();
+          order.ship("TRACK123456789");
           await this.orderRepository.save(order);
           console.log(`🚚 订单已发货: ${order.status}`);
         }, 1000);
