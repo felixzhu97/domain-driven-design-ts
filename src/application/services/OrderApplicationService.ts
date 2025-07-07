@@ -23,17 +23,20 @@ export class OrderApplicationService {
    * 创建订单
    */
   async createOrder(data: {
-    customerId: EntityId;
+    customerId: string;
     items: Array<{
-      productId: EntityId;
+      productId: string;
       quantity: number;
+      unitPrice: number;
     }>;
     shippingAddress: {
       street: string;
       city: string;
-      state: string;
-      zipCode: string;
+      province: string;
+      district: string;
       country: string;
+      postalCode: string;
+      detail?: string;
     };
   }): Promise<Order> {
     // 验证客户是否存在
@@ -46,58 +49,63 @@ export class OrderApplicationService {
       throw new Error("客户账户未激活");
     }
 
-    // 验证并获取商品信息
+    // 创建订单项
     const orderItems: OrderItem[] = [];
-    let totalAmount = new Money(0, "CNY");
+    let totalAmount = 0;
 
-    for (const item of data.items) {
-      const product = await this.productRepository.findById(item.productId);
+    for (const itemData of data.items) {
+      const product = await this.productRepository.findById(itemData.productId);
       if (!product) {
-        throw new Error(`商品 ${item.productId.toString()} 不存在`);
+        throw new Error(`商品 ${itemData.productId} 不存在`);
       }
 
-      if (!product.isAvailable) {
-        throw new Error(`商品 ${product.name} 不可用`);
+      if (!product.isInStock || product.stock < itemData.quantity) {
+        throw new Error(`商品 ${product.name} 库存不足`);
       }
 
-      if (product.stock < item.quantity) {
-        throw new Error(
-          `商品 ${product.name} 库存不足，当前库存：${product.stock}`
-        );
-      }
-
-      // 创建订单项
       const orderItem = OrderItem.create(
-        item.productId,
+        itemData.productId,
         product.name,
-        item.quantity,
-        product.price
+        itemData.quantity,
+        new Money(itemData.unitPrice, "CNY")
       );
 
       orderItems.push(orderItem);
-
-      // 计算总金额
-      const itemTotal = product.price.multiply(item.quantity);
-      totalAmount = totalAmount.add(itemTotal);
+      totalAmount += itemData.unitPrice * itemData.quantity;
     }
 
     // 创建配送地址
-    const shippingAddress = new Address({
-      country: data.shippingAddress.country,
-      province: data.shippingAddress.state,
-      city: data.shippingAddress.city,
-      district: "",
+    const addressProps = {
       street: data.shippingAddress.street,
-      postalCode: data.shippingAddress.zipCode,
-    });
+      city: data.shippingAddress.city,
+      province: data.shippingAddress.province,
+      district: data.shippingAddress.district,
+      country: data.shippingAddress.country,
+      postalCode: data.shippingAddress.postalCode,
+      ...(data.shippingAddress.detail !== undefined && {
+        detail: data.shippingAddress.detail,
+      }),
+    };
+
+    const shippingAddress = new Address(addressProps);
+
+    // 生成订单号
+    const orderNumber = `ORD-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
 
     // 创建订单
     const order = Order.create(
       data.customerId,
-      orderItems,
-      totalAmount,
-      shippingAddress
+      shippingAddress,
+      shippingAddress, // 使用相同地址作为账单地址
+      orderNumber
     );
+
+    // 添加订单项
+    for (const orderItem of orderItems) {
+      order.addItem(orderItem);
+    }
 
     // 扣减库存
     for (const item of data.items) {

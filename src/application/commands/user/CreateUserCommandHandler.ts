@@ -1,14 +1,12 @@
 import { CommandHandler } from "../base/CommandHandler";
-import {
-  CommandResult,
-  createSuccessResult,
-  createFailureResult,
-} from "../base/Command";
 import { CreateUserCommand } from "./CreateUserCommand";
 import { User } from "../../../domain/entities/User";
 import { Email } from "../../../domain/value-objects";
 import { IUserRepository } from "../../../domain/repositories";
-import { UserRegistrationService } from "../../../domain/services/UserRegistrationService";
+import {
+  UserRegistrationService,
+  RegistrationData,
+} from "../../../domain/services/UserRegistrationService";
 
 /**
  * 创建用户命令处理器
@@ -19,12 +17,6 @@ export class CreateUserCommandHandler extends CommandHandler<
 > {
   constructor(private readonly userRepository: IUserRepository) {
     super();
-  }
-
-  public async handle(
-    command: CreateUserCommand
-  ): Promise<CommandResult<User>> {
-    return this.processCommand(command);
   }
 
   protected async validate(
@@ -45,31 +37,36 @@ export class CreateUserCommandHandler extends CommandHandler<
   }
 
   protected async execute(command: CreateUserCommand): Promise<User> {
-    // 获取所有现有用户（用于验证）
+    // 获取现有用户列表进行验证
     const existingUsers = await this.userRepository.findAll();
 
     // 准备注册数据
-    const registrationData = {
+    const registrationData: RegistrationData = {
       email: command.email,
       name: command.name,
       password: command.password,
-      confirmPassword: command.password, // 在命令中我们假设密码已经确认过
-      initialAddress: command.initialAddress
-        ? {
-            country: command.initialAddress.country,
-            province: command.initialAddress.province,
-            city: command.initialAddress.city,
-            district: command.initialAddress.district,
-            street: command.initialAddress.street,
-            postalCode: command.initialAddress.postalCode,
-            detail: command.initialAddress.detail,
-          }
-        : undefined,
-      agreedToTerms: true, // 在命令层面假设用户已经同意条款
+      confirmPassword: command.password,
+      agreedToTerms: true,
       agreedToPrivacyPolicy: true,
     };
 
-    // 使用领域服务创建用户
+    // 处理可选地址
+    if (command.initialAddress) {
+      registrationData.initialAddress = {
+        country: command.initialAddress.country,
+        province: command.initialAddress.province,
+        city: command.initialAddress.city,
+        district: command.initialAddress.district,
+        street: command.initialAddress.street,
+        postalCode: command.initialAddress.postalCode,
+      };
+
+      if (command.initialAddress.detail !== undefined) {
+        registrationData.initialAddress.detail = command.initialAddress.detail;
+      }
+    }
+
+    // 使用用户注册服务创建用户
     const user = await UserRegistrationService.registerUser(
       registrationData,
       existingUsers

@@ -39,16 +39,16 @@ export class GetProductsQuery extends Query {
     }
 
     // 验证价格范围
-    if (this.filters?.priceMin !== undefined && this.filters.priceMin < 0) {
+    if (this.filters?.minPrice !== undefined && this.filters.minPrice < 0) {
       errors.push("最小价格不能为负数");
     }
-    if (this.filters?.priceMax !== undefined && this.filters.priceMax < 0) {
+    if (this.filters?.maxPrice !== undefined && this.filters.maxPrice < 0) {
       errors.push("最大价格不能为负数");
     }
     if (
-      this.filters?.priceMin !== undefined &&
-      this.filters?.priceMax !== undefined &&
-      this.filters.priceMin > this.filters.priceMax
+      this.filters?.minPrice !== undefined &&
+      this.filters?.maxPrice !== undefined &&
+      this.filters.minPrice > this.filters.maxPrice
     ) {
       errors.push("最小价格不能大于最大价格");
     }
@@ -61,10 +61,9 @@ export class GetProductsQuery extends Query {
  * 商品过滤条件
  */
 export interface ProductFilters {
-  category?: ProductCategory;
+  name?: string;
+  category?: string;
   minPrice?: number;
   maxPrice?: number;
   inStock?: boolean;
-  isActive?: boolean;
-  searchTerm?: string;
 }

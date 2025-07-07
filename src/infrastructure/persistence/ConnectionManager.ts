@@ -15,10 +15,10 @@ export enum ConnectionStatus {
  */
 export interface ConnectionInfo {
   status: ConnectionStatus;
-  connectedAt?: Date | undefined;
-  lastError?: Error | undefined;
-  activeConnections?: number | undefined;
-  maxConnections?: number | undefined;
+  connectedAt?: Date;
+  lastError?: Error;
+  activeConnections?: number;
+  maxConnections?: number;
 }
 
 /**
@@ -71,7 +71,7 @@ export class ConnectionManager {
 
       this.status = ConnectionStatus.CONNECTED;
       this.connectedAt = new Date();
-      this.lastError = undefined;
+      delete this.lastError; // 使用delete而不是设置为undefined
     } catch (error) {
       this.status = ConnectionStatus.ERROR;
       this.lastError = error as Error;
@@ -86,7 +86,7 @@ export class ConnectionManager {
     if (this.status === ConnectionStatus.CONNECTED) {
       // 实际的关闭逻辑会在具体的数据库驱动中实现
       this.status = ConnectionStatus.DISCONNECTED;
-      this.connectedAt = undefined;
+      delete this.connectedAt; // 使用delete而不是设置为undefined
     }
   }
 
@@ -94,14 +94,22 @@ export class ConnectionManager {
    * 获取连接信息
    */
   getConnectionInfo(): ConnectionInfo {
-    return {
+    const info: ConnectionInfo = {
       status: this.status,
-      connectedAt: this.connectedAt,
-      lastError: this.lastError,
       // 实际项目中这些信息会从数据库连接池获取
       activeConnections: this.status === ConnectionStatus.CONNECTED ? 1 : 0,
       maxConnections: this.config?.connectionPool?.max || 1,
     };
+
+    if (this.connectedAt) {
+      info.connectedAt = this.connectedAt;
+    }
+
+    if (this.lastError) {
+      info.lastError = this.lastError;
+    }
+
+    return info;
   }
 
   /**

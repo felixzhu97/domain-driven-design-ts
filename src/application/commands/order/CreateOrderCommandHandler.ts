@@ -7,7 +7,7 @@ import {
 import { CreateOrderCommand } from "./CreateOrderCommand";
 import { Order } from "../../../domain/entities/Order";
 import { OrderItem } from "../../../domain/entities/OrderItem";
-import { Address } from "../../../domain/value-objects";
+import { Address, Money } from "../../../domain/value-objects";
 import {
   IUserRepository,
   IProductRepository,
@@ -22,9 +22,9 @@ export class CreateOrderCommandHandler extends CommandHandler<
   Order
 > {
   constructor(
+    private readonly orderRepository: IOrderRepository,
     private readonly userRepository: IUserRepository,
-    private readonly productRepository: IProductRepository,
-    private readonly orderRepository: IOrderRepository
+    private readonly productRepository: IProductRepository
   ) {
     super();
   }
@@ -37,37 +37,26 @@ export class CreateOrderCommandHandler extends CommandHandler<
   }
 
   protected async execute(command: CreateOrderCommand): Promise<Order> {
-    // 验证命令
-    const validationErrors = command.validate();
-    if (validationErrors.length > 0) {
-      throw new Error(`命令验证失败: ${validationErrors.join(", ")}`);
-    }
-
     // 验证客户是否存在
     const customer = await this.userRepository.findById(command.customerId);
     if (!customer) {
       throw new Error("客户不存在");
     }
 
-    // 验证商品并创建订单项
+    // 验证并创建订单项
     const orderItems: OrderItem[] = [];
+    let totalAmount = 0;
+
     for (const item of command.items) {
       const product = await this.productRepository.findById(item.productId);
       if (!product) {
-        throw new Error(`商品 ${item.productId.toString()} 不存在`);
+        throw new Error(`商品 ${item.productId} 不存在`);
       }
 
-      if (!product.isAvailable) {
-        throw new Error(`商品 ${product.name} 不可用或无库存`);
+      if (!product.isInStock || product.stock < item.quantity) {
+        throw new Error(`商品 ${product.name} 库存不足`);
       }
 
-      if (product.stock < item.quantity) {
-        throw new Error(
-          `商品 ${product.name} 库存不足，当前库存：${product.stock}，需要：${item.quantity}`
-        );
-      }
-
-      // 创建订单项
       const orderItem = OrderItem.create(
         item.productId,
         product.name,
@@ -76,47 +65,52 @@ export class CreateOrderCommandHandler extends CommandHandler<
       );
 
       orderItems.push(orderItem);
+      totalAmount += product.price.amount * item.quantity;
     }
 
-    // 确定配送地址
+    // 创建配送地址
     let shippingAddress: Address;
     if (command.shippingAddress) {
-      shippingAddress = new Address({
-        country: command.shippingAddress.country,
-        province: command.shippingAddress.province,
-        city: command.shippingAddress.city,
-        district: command.shippingAddress.district,
+      const addressProps = {
         street: command.shippingAddress.street,
+        city: command.shippingAddress.city,
+        province: command.shippingAddress.province,
+        district: command.shippingAddress.district,
+        country: command.shippingAddress.country,
         postalCode: command.shippingAddress.postalCode,
-        detail: command.shippingAddress.detail,
-      });
+        ...(command.shippingAddress.detail !== undefined && {
+          detail: command.shippingAddress.detail,
+        }),
+      };
+
+      shippingAddress = new Address(addressProps);
     } else {
-      // 使用客户的默认地址
-      if (!customer.addresses || customer.addresses.length === 0) {
-        throw new Error("需要提供配送地址或客户必须有默认地址");
-      }
-      shippingAddress = customer.addresses[0];
+      throw new Error("配送地址不能为空");
     }
 
-    // 计算总金额
-    let totalAmount = orderItems.reduce(
-      (sum, item) => sum.add(item.totalPrice),
-      orderItems[0].totalPrice.multiply(0)
-    );
+    // 生成订单号
+    const orderNumber = `ORD-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
 
     // 创建订单
     const order = Order.create(
       command.customerId,
-      orderItems,
-      totalAmount,
-      shippingAddress
+      shippingAddress,
+      shippingAddress, // 使用相同地址作为账单地址
+      orderNumber
     );
 
-    // 减少商品库存
+    // 添加订单项
+    for (const orderItem of orderItems) {
+      order.addItem(orderItem);
+    }
+
+    // 扣减库存
     for (const item of command.items) {
       const product = await this.productRepository.findById(item.productId);
       if (product) {
-        product.decreaseStock(item.quantity, "订单扣减库存");
+        product.decreaseStock(item.quantity, `订单 ${orderNumber} 消费`);
         await this.productRepository.save(product);
       }
     }

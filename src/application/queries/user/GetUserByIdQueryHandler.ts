@@ -1,45 +1,31 @@
-import { QueryHandler, IQueryHandler } from "../base/QueryHandler";
-import {
-  QueryResult,
-  createQuerySuccessResult,
-  createQueryFailureResult,
-} from "../base/Query";
+import { QueryHandler } from "../base/QueryHandler";
 import { GetUserByIdQuery } from "./GetUserByIdQuery";
-import { User } from "../../../domain/entities";
+import { User } from "../../../domain/entities/User";
 import { IUserRepository } from "../../../domain/repositories";
 
 /**
  * 根据ID获取用户查询处理器
  */
-export class GetUserByIdQueryHandler
-  extends QueryHandler<GetUserByIdQuery, User>
-  implements IQueryHandler<GetUserByIdQuery, User>
-{
-  constructor(private userRepository: IUserRepository) {
+export class GetUserByIdQueryHandler extends QueryHandler<
+  GetUserByIdQuery,
+  User
+> {
+  constructor(private readonly userRepository: IUserRepository) {
     super();
   }
 
-  public async handle(query: GetUserByIdQuery): Promise<QueryResult<User>> {
-    return this.processQuery(query);
+  protected async validate(
+    query: GetUserByIdQuery
+  ): Promise<{ isValid: boolean; errors: string[] }> {
+    const errors = query.validate();
+    return { isValid: errors.length === 0, errors };
   }
 
-  protected validateQuery(query: GetUserByIdQuery): string[] {
-    const errors: string[] = [];
-
-    if (!query.userId || query.userId.trim() === "") {
-      errors.push("用户ID不能为空");
-    }
-
-    return errors;
-  }
-
-  protected async executeQuery(query: GetUserByIdQuery): Promise<User> {
+  protected async execute(query: GetUserByIdQuery): Promise<User> {
     const user = await this.userRepository.findById(query.userId);
-
     if (!user) {
-      throw new Error(`找不到用户: ${query.userId}`);
+      throw new Error("用户不存在");
     }
-
     return user;
   }
 }

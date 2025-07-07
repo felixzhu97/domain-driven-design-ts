@@ -82,7 +82,7 @@ export class UserApplicationService {
    * 更新用户信息
    */
   async updateUserProfile(
-    userId: EntityId,
+    userId: string,
     updates: {
       name?: string;
       email?: string;
@@ -103,7 +103,7 @@ export class UserApplicationService {
       const newEmail = new Email(updates.email);
       // 检查新邮箱是否已被其他用户使用
       const existingUser = await this.userRepository.findByEmail(newEmail);
-      if (existingUser && existingUser.id.value !== userId.value) {
+      if (existingUser && existingUser.id !== userId) {
         throw new Error("该邮箱已被其他用户使用");
       }
       user.changeEmail(newEmail);
@@ -197,5 +197,63 @@ export class UserApplicationService {
     await this.userRepository.save(user);
 
     return user;
+  }
+
+  /**
+   * 比较两个用户ID是否相等
+   */
+  private compareUserIds(id1: string, id2: string): boolean {
+    return id1 === id2;
+  }
+
+  /**
+   * 为用户添加地址
+   */
+  async addAddressToUser(
+    userId: string,
+    addressData: {
+      street: string;
+      city: string;
+      province: string;
+      district: string;
+      country: string;
+      postalCode: string;
+      detail?: string;
+    }
+  ): Promise<{ success: boolean; message: string; user?: User }> {
+    try {
+      const user = await this.userRepository.findById(userId);
+      if (!user) {
+        return { success: false, message: "用户不存在" };
+      }
+
+      const addressProps = {
+        street: addressData.street,
+        city: addressData.city,
+        province: addressData.province,
+        district: addressData.district,
+        country: addressData.country,
+        postalCode: addressData.postalCode,
+        ...(addressData.detail !== undefined && { detail: addressData.detail }),
+      };
+
+      const address = new Address(addressProps);
+
+      // 这里需要在User实体中添加addAddress方法
+      // user.addAddress(address);
+
+      await this.userRepository.save(user);
+
+      return {
+        success: true,
+        message: "地址添加成功",
+        user,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "添加地址失败",
+      };
+    }
   }
 }

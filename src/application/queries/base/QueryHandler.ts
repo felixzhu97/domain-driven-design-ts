@@ -2,17 +2,18 @@ import {
   QueryResult,
   createQuerySuccessResult,
   createQueryFailureResult,
+  Query,
 } from "./Query";
 
 /**
  * 查询处理器接口
  */
-export interface IQueryHandler<TQuery extends IQuery, TResult = any> {
+export interface IQueryHandler<TQuery, TResult = any> {
   handle(query: TQuery): Promise<QueryResult<TResult>>;
 }
 
 /**
- * 查询处理器基类
+ * 抽象查询处理器基类
  */
 export abstract class QueryHandler<TQuery, TResult = any> {
   /**

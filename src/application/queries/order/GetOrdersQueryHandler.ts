@@ -29,47 +29,49 @@ export class GetOrdersQueryHandler extends QueryHandler<
   }
 
   protected async execute(query: GetOrdersQuery): Promise<Order[]> {
-    // 构建搜索条件
-    const searchCriteria = {
-      customerId: query.filters?.customerId,
-      status: query.filters?.status,
-      startDate: query.filters?.startDate,
-      endDate: query.filters?.endDate,
-      minAmount: query.filters?.minAmount
-        ? new Money(query.filters.minAmount, "CNY")
-        : undefined,
-      maxAmount: query.filters?.maxAmount
-        ? new Money(query.filters.maxAmount, "CNY")
-        : undefined,
-    };
-
-    // 执行查询 - 使用findAll方法，因为findByCriteria可能不存在
+    // 获取所有订单
     const allOrders = await this.orderRepository.findAll();
 
-    // 手动过滤
+    // 应用过滤器
     let filteredOrders = allOrders;
 
-    if (searchCriteria.customerId) {
+    // 按客户ID过滤
+    if (query.filters?.customerId) {
       filteredOrders = filteredOrders.filter(
-        (order) => order.customerId.value === searchCriteria.customerId
+        (order) => order.customerId === query.filters!.customerId
       );
     }
 
-    if (searchCriteria.status) {
+    // 按状态过滤
+    if (query.filters?.status) {
       filteredOrders = filteredOrders.filter(
-        (order) => order.status === searchCriteria.status
+        (order) => order.status === query.filters!.status
       );
     }
 
-    if (searchCriteria.startDate) {
+    // 按金额范围过滤
+    if (query.filters?.minAmount !== undefined) {
       filteredOrders = filteredOrders.filter(
-        (order) => order.createdAt >= searchCriteria.startDate!
+        (order) => order.totalAmount.amount >= query.filters!.minAmount!
       );
     }
 
-    if (searchCriteria.endDate) {
+    if (query.filters?.maxAmount !== undefined) {
       filteredOrders = filteredOrders.filter(
-        (order) => order.createdAt <= searchCriteria.endDate!
+        (order) => order.totalAmount.amount <= query.filters!.maxAmount!
+      );
+    }
+
+    // 按日期范围过滤
+    if (query.filters?.startDate) {
+      filteredOrders = filteredOrders.filter(
+        (order) => order.createdAt >= query.filters!.startDate!
+      );
+    }
+
+    if (query.filters?.endDate) {
+      filteredOrders = filteredOrders.filter(
+        (order) => order.createdAt <= query.filters!.endDate!
       );
     }
 
