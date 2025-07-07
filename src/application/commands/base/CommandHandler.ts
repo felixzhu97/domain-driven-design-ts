@@ -1,83 +1,53 @@
-import { ICommand, CommandResult } from "./Command";
-
-/**
- * 命令处理器接口
- */
-export interface ICommandHandler<TCommand extends ICommand, TResult = any> {
-  handle(command: TCommand): Promise<CommandResult<TResult>>;
-}
+import {
+  CommandResult,
+  createSuccessResult,
+  createFailureResult,
+} from "./Command";
 
 /**
  * 命令处理器基类
  */
-export abstract class CommandHandler<TCommand extends ICommand, TResult = any>
-  implements ICommandHandler<TCommand, TResult>
-{
-  public abstract handle(command: TCommand): Promise<CommandResult<TResult>>;
-
+export abstract class CommandHandler<TCommand, TResult = any> {
   /**
-   * 验证命令
+   * 处理命令
    */
-  protected abstract validateCommand(command: TCommand): string[];
-
-  /**
-   * 执行命令
-   */
-  protected abstract executeCommand(command: TCommand): Promise<TResult>;
-
-  /**
-   * 处理命令的通用流程
-   */
-  protected async processCommand(
-    command: TCommand
-  ): Promise<CommandResult<TResult>> {
+  public async handle(command: TCommand): Promise<CommandResult<TResult>> {
     try {
-      // 1. 验证命令
-      const validationErrors = this.validateCommand(command);
-      if (validationErrors.length > 0) {
-        return {
-          success: false,
-          error: "命令验证失败",
-          validationErrors,
-        };
+      // 验证命令
+      const validationResult = await this.validate(command);
+      if (!validationResult.isValid) {
+        return createFailureResult("命令验证失败", validationResult.errors);
       }
 
-      // 2. 执行命令
-      const result = await this.executeCommand(command);
-
-      // 3. 返回成功结果
-      return {
-        success: true,
-        data: result,
-      };
+      // 执行命令
+      const result = await this.execute(command);
+      return createSuccessResult(result, "命令执行成功");
     } catch (error) {
-      // 4. 处理异常
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "未知错误",
-      };
+      const errorMessage =
+        error instanceof Error ? error.message : "命令执行失败";
+      return createFailureResult(errorMessage);
     }
   }
 
   /**
-   * 创建成功结果
+   * 验证命令
    */
-  protected success<T>(data: T, message?: string): CommandResult<T> {
-    return {
-      success: true,
-      data,
-      message,
-    };
+  protected async validate(
+    command: TCommand
+  ): Promise<{ isValid: boolean; errors: string[] }> {
+    // 默认实现 - 子类可以重写
+    return { isValid: true, errors: [] };
   }
 
   /**
-   * 创建失败结果
+   * 执行命令的具体实现
    */
-  protected failure(error: string, validationErrors?: string[]): CommandResult {
-    return {
-      success: false,
-      error,
-      validationErrors,
-    };
+  protected abstract execute(command: TCommand): Promise<TResult>;
+
+  /**
+   * 获取处理器名称
+   */
+  public getHandlerName(): string {
+    return this.constructor.name;
   }
 }

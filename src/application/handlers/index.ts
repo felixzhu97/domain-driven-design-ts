@@ -1,0 +1,1 @@
+export { HandlerRegistry } from "./HandlerRegistry";

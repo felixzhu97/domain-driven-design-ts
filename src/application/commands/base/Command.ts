@@ -1,4 +1,5 @@
 import { EntityId } from "../../../shared/types";
+import { DomainEvent } from "../../../shared/types";
 
 /**
  * 命令接口
@@ -9,13 +10,24 @@ export interface ICommand {
 }
 
 /**
+ * 命令执行结果
+ */
+export interface CommandResult<T = any> {
+  success: boolean;
+  data?: T | undefined;
+  error?: string | undefined;
+  message?: string | undefined;
+  validationErrors?: string[] | undefined;
+}
+
+/**
  * 命令基类
  */
 export abstract class Command implements ICommand {
   public readonly commandId: EntityId;
   public readonly timestamp: Date;
 
-  protected constructor() {
+  constructor() {
     this.commandId = this.generateId();
     this.timestamp = new Date();
   }
@@ -31,24 +43,37 @@ export abstract class Command implements ICommand {
    * 验证命令
    */
   abstract validate(): string[];
-}
 
-/**
- * 命令结果
- */
-export interface CommandResult<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-  validationErrors?: string[];
+  /**
+   * 获取命令的唯一标识符
+   */
+  public getCommandId(): string {
+    return this.commandId;
+  }
+
+  /**
+   * 获取命令创建时间
+   */
+  public getTimestamp(): Date {
+    return this.timestamp;
+  }
+
+  /**
+   * 获取命令类型名称
+   */
+  public getCommandType(): string {
+    return this.constructor.name;
+  }
 }
 
 /**
  * 命令结果工具类
  */
 export class CommandResultHelper {
-  static success<T>(data: T, message?: string): CommandResult<T> {
+  /**
+   * 创建成功结果
+   */
+  public static success<T>(data?: T, message?: string): CommandResult<T> {
     return {
       success: true,
       data,
@@ -56,7 +81,13 @@ export class CommandResultHelper {
     };
   }
 
-  static failure(error: string, validationErrors?: string[]): CommandResult {
+  /**
+   * 创建失败结果
+   */
+  public static failure(
+    error: string,
+    validationErrors?: string[]
+  ): CommandResult<any> {
     return {
       success: false,
       error,
@@ -66,10 +97,10 @@ export class CommandResultHelper {
 }
 
 /**
- * 创建成功结果
+ * 创建成功的命令结果
  */
 export function createSuccessResult<T>(
-  data: T,
+  data?: T,
   message?: string
 ): CommandResult<T> {
   return {
@@ -80,9 +111,9 @@ export function createSuccessResult<T>(
 }
 
 /**
- * 创建成功结果（无数据）
+ * 创建空成功结果
  */
-export function createSuccessResultWithoutData(
+export function createEmptySuccessResult(
   message?: string
 ): CommandResult<undefined> {
   return {
@@ -92,20 +123,15 @@ export function createSuccessResultWithoutData(
 }
 
 /**
- * 创建失败结果
+ * 创建失败的命令结果
  */
 export function createFailureResult(
   error: string,
   validationErrors?: string[]
-): CommandResult {
-  const result: CommandResult = {
+): CommandResult<any> {
+  return {
     success: false,
     error,
+    validationErrors,
   };
-
-  if (validationErrors) {
-    result.validationErrors = validationErrors;
-  }
-
-  return result;
 }
