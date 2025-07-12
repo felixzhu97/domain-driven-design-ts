@@ -27,5 +27,11 @@ export * from "./EventStore";
 export * from "./Saga";
 
 // 导出工厂模式相关类型
-export * from "../domain/factories/DomainFactory";
-export * from "../domain/factories/FactoryRegistry";
+export * from "../../domain/factories/DomainFactory";
+export * from "../../domain/factories/FactoryRegistry";
+
+// 导出错误处理相关类型
+export * from "../errors/DomainError";
+export * from "../errors/ApplicationError";
+export * from "../errors/ErrorHandler";
+export * from "../errors/ErrorRecovery";
