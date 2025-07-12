@@ -17,6 +17,7 @@ import { UserController, ProductController } from "../presentation/controllers";
 
 import { OrderService } from "../domain/services";
 import { OrderApplicationService } from "../application/services";
+import { SpecificationDemo } from "./SpecificationDemo";
 
 /**
  * 完整的业务流程演示服务
@@ -63,6 +64,9 @@ export class CompleteDemoService {
 
       // 6. 演示事件处理
       await this.demonstrateEventHandling();
+
+      // 7. 演示领域规约模式
+      await this.demonstrateSpecificationPattern();
 
       console.log("✅ 完整业务流程演示完成！");
     } catch (error) {
@@ -199,15 +203,7 @@ export class CompleteDemoService {
       console.log("👤 用户详情:", JSON.stringify(userResponse, null, 2));
     }
 
-    // 搜索用户
-    const searchResponse = await this.userController.searchUsers("张");
-    console.log("🔍 用户搜索结果:", JSON.stringify(searchResponse, null, 2));
-
-    // 获取用户统计
-    const statsResponse = await this.userController.getUserStats();
-    console.log("📈 用户统计信息:", JSON.stringify(statsResponse, null, 2));
-
-    console.log("\n✅ 用户管理功能演示完成\n");
+    console.log("\n✅ 用户管理演示完成\n");
   }
 
   /**
@@ -220,62 +216,58 @@ export class CompleteDemoService {
     const productsResponse = await this.productController.getProducts({
       page: 1,
       pageSize: 10,
-      sortBy: "price",
-      sortOrder: "desc",
     });
-    console.log("📊 商品列表响应:", JSON.stringify(productsResponse, null, 2));
+    console.log("📦 商品列表响应:", JSON.stringify(productsResponse, null, 2));
 
-    // 按分类搜索商品
-    const digitalProductsResponse = await this.productController.searchProducts(
-      {
-        category: "数码产品",
-        minPrice: 5000,
-        maxPrice: 20000,
-      }
-    );
-    console.log(
-      "🔍 数码产品搜索结果:",
-      JSON.stringify(digitalProductsResponse, null, 2)
-    );
+    // 根据ID获取商品
+    if (productsResponse.data && productsResponse.data.length > 0) {
+      const firstProduct = productsResponse.data[0];
+      const productResponse = await this.productController.getProductById(
+        firstProduct.id
+      );
+      console.log("📱 商品详情:", JSON.stringify(productResponse, null, 2));
 
-    // 获取商品统计
-    const productStatsResponse = await this.productController.getProductStats();
-    console.log(
-      "📈 商品统计信息:",
-      JSON.stringify(productStatsResponse, null, 2)
-    );
+      // 更新商品库存
+      const updateResponse = await this.productController.updateProductStock(
+        firstProduct.id,
+        {
+          quantity: 5,
+          reason: "演示库存更新",
+        }
+      );
+      console.log("📊 库存更新响应:", JSON.stringify(updateResponse, null, 2));
+    }
 
-    console.log("\n✅ 商品管理功能演示完成\n");
+    console.log("\n✅ 商品管理演示完成\n");
   }
 
   /**
-   * 演示订单流程
+   * 演示订单处理流程
    */
   private async demonstrateOrderProcess(): Promise<void> {
-    console.log("🛒 演示订单业务流程...\n");
+    console.log("📋 演示订单处理流程...\n");
 
     try {
-      // 获取第一个用户和几个商品
-      const users = await this.userRepository.findAll();
+      // 获取客户和商品
+      const customers = await this.userRepository.findAll();
       const products = await this.productRepository.findAll();
 
-      if (users.length === 0 || products.length === 0) {
-        console.log("❌ 缺少用户或商品数据");
+      if (customers.length === 0 || products.length === 0) {
+        console.log("⚠️ 缺少必要的客户或商品数据");
         return;
       }
 
-      const customer = users[0];
-      const selectedProducts = products.slice(0, 2);
-
-      // 验证客户数据
+      const customer = customers[0];
       if (!customer) {
-        console.log("❌ 客户数据无效");
+        console.log("❌ 没有找到可用的客户数据");
         return;
       }
+
+      const selectedProducts = products.slice(0, 2); // 选择前两个商品
 
       console.log(`👤 客户: ${customer.name}`);
       console.log(
-        `🛍️ 选择商品: ${selectedProducts.map((p) => p.name).join(", ")}`
+        `🛒 选择商品: ${selectedProducts.map((p) => p.name).join(", ")}`
       );
 
       // 检查客户是否有地址
@@ -413,6 +405,22 @@ export class CompleteDemoService {
   }
 
   /**
+   * 演示领域规约模式
+   */
+  private async demonstrateSpecificationPattern(): Promise<void> {
+    console.log("🎯 演示领域规约(Domain Specifications)模式...\n");
+
+    try {
+      const specificationDemo = new SpecificationDemo();
+      await specificationDemo.runDemo();
+    } catch (error) {
+      console.error("❌ 规约演示过程中发生错误:", error);
+    }
+
+    console.log("\n✅ 领域规约演示完成\n");
+  }
+
+  /**
    * 展示系统架构信息
    */
   public displayArchitectureInfo(): void {
@@ -425,6 +433,7 @@ export class CompleteDemoService {
     console.log("│   │   ├── value-objects/   # 值对象");
     console.log("│   │   ├── services/        # 领域服务");
     console.log("│   │   ├── events/          # 领域事件");
+    console.log("│   │   ├── specifications/  # 领域规约");
     console.log("│   │   └── repositories/    # 仓储接口");
     console.log("│   ├── application/         # 应用层");
     console.log("│   │   ├── commands/        # 命令 (CQRS)");
@@ -439,6 +448,7 @@ export class CompleteDemoService {
     console.log("│   │   └── dtos/            # 数据传输对象");
     console.log("│   └── shared/              # 共享组件");
     console.log("│       ├── types/           # 类型定义");
+    console.log("│       ├── specifications/  # 规约基础架构");
     console.log("│       └── utils/           # 工具函数");
     console.log("");
 
@@ -448,6 +458,7 @@ export class CompleteDemoService {
     console.log("✅ 值对象 (Value Object)");
     console.log("✅ 领域服务 (Domain Service)");
     console.log("✅ 领域事件 (Domain Event)");
+    console.log("✅ 领域规约 (Domain Specification)");
     console.log("✅ 仓储模式 (Repository Pattern)");
     console.log("✅ CQRS (命令查询职责分离)");
     console.log("✅ 依赖反转 (Dependency Inversion)");
@@ -463,6 +474,7 @@ export class CompleteDemoService {
     console.log("📍 地址管理");
     console.log("📊 业务数据统计分析");
     console.log("⚡ 事件驱动的业务逻辑");
+    console.log("🎯 复杂业务规则封装");
     console.log("");
   }
 }

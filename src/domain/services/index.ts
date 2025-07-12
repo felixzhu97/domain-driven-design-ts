@@ -15,3 +15,4 @@ export {
   RegistrationData,
   UserValidationRule,
 } from "./UserRegistrationService";
+export { SpecificationService } from "./SpecificationService";

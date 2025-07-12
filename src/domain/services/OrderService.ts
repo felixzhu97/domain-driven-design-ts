@@ -1,6 +1,13 @@
 import { Order, OrderItem, Product, User } from "../entities";
 import { Money, Address } from "../value-objects";
 import { EntityId } from "../../shared/types";
+import { SpecificationService } from "./SpecificationService";
+import {
+  OrderDiscountEligibilitySpecification,
+  FreeShippingEligibilitySpecification,
+  OrderCancellationSpecification,
+  ProductPurchasabilitySpecification,
+} from "../specifications";
 
 export interface OrderCreationData {
   customerId: EntityId;
@@ -14,6 +21,8 @@ export interface OrderCreationData {
 }
 
 export class OrderService {
+  private static specificationService = new SpecificationService();
+
   /**
    * 创建新订单
    */
@@ -30,7 +39,7 @@ export class OrderService {
       throw new Error("客户账户已停用，无法创建订单");
     }
 
-    // 创建订单项
+    // 创建订单项并验证商品可购买性
     const orderItems: OrderItem[] = [];
     for (const itemData of data.items) {
       const product = products.find((p) => p.id === itemData.productId);
@@ -38,8 +47,21 @@ export class OrderService {
         throw new Error(`商品不存在: ${itemData.productId}`);
       }
 
-      if (!product.canBePurchased(itemData.quantity)) {
-        throw new Error(`商品 ${product.name} 库存不足或状态不可购买`);
+      // 使用规约验证商品可购买性
+      if (
+        !this.specificationService.validateProductPurchasability(
+          product,
+          itemData.quantity
+        )
+      ) {
+        throw new Error(`商品 ${product.name} 不满足购买条件`);
+      }
+
+      // 检查库存警告
+      const stockCheck =
+        this.specificationService.checkLowStockWarning(product);
+      if (stockCheck.isCritical) {
+        throw new Error(`商品 ${product.name} 库存严重不足，无法完成订单`);
       }
 
       const orderItem = OrderItem.create(
@@ -83,6 +105,18 @@ export class OrderService {
     // 添加订单项
     orderItems.forEach((item) => order.addItem(item));
 
+    // 应用免费配送规约
+    if (
+      this.specificationService.validateFreeShippingEligibility(
+        order,
+        new Money(500, shippingCost.currency),
+        ["北京", "上海", "广州", "深圳"]
+      )
+    ) {
+      // 这里可以设置免费配送标识或调整配送费用
+      console.log("订单符合免费配送条件");
+    }
+
     return order;
   }
 
@@ -94,10 +128,19 @@ export class OrderService {
       return false;
     }
 
-    // 检查所有商品是否仍然可购买
+    // 使用规约验证所有商品的可购买性
     for (const orderItem of order.orderItems) {
       const product = products.find((p) => p.id === orderItem.productId);
-      if (!product || !product.canBePurchased(orderItem.quantity)) {
+      if (!product) {
+        return false;
+      }
+
+      if (
+        !this.specificationService.validateProductPurchasability(
+          product,
+          orderItem.quantity
+        )
+      ) {
         return false;
       }
     }
@@ -111,6 +154,18 @@ export class OrderService {
   public static confirmOrder(order: Order, products: Product[]): void {
     if (!this.canConfirmOrder(order, products)) {
       throw new Error("订单无法确认，请检查商品状态和库存");
+    }
+
+    // 使用复合验证
+    const validationResult = this.specificationService.validateCompleteOrder(
+      order,
+      // 这里需要传入客户信息，在实际应用中应该从仓储中获取
+      {} as User,
+      products
+    );
+
+    if (!validationResult.canProceed) {
+      throw new Error(`订单确认失败: ${validationResult.errors.join(", ")}`);
     }
 
     // 减少商品库存
@@ -136,8 +191,9 @@ export class OrderService {
     products: Product[],
     reason: string
   ): void {
-    if (!order.canBeCancelled) {
-      throw new Error("订单当前状态不允许取消");
+    // 使用规约验证订单是否可以取消
+    if (!this.specificationService.validateOrderCancellation(order)) {
+      throw new Error("订单当前状态不允许取消或已超过取消时限");
     }
 
     // 如果订单已确认或已支付，需要恢复库存
@@ -155,6 +211,60 @@ export class OrderService {
 
     // 取消订单
     order.cancel(reason);
+  }
+
+  /**
+   * 计算订单折扣
+   */
+  public static calculateOrderDiscount(
+    order: Order,
+    customer: User,
+    customerHistory: { totalOrders: number; totalAmount: Money }
+  ): Money {
+    // 使用VIP折扣规约
+    if (
+      this.specificationService.validateVipDiscountEligibility(
+        order,
+        customer,
+        customerHistory,
+        10, // 最少10个订单
+        new Money(10000, order.totalAmount.currency) // 最少消费10000
+      )
+    ) {
+      // VIP客户享受10%折扣
+      return order.subtotalAmount.multiply(0.1);
+    }
+
+    // 使用普通折扣规约
+    if (
+      this.specificationService.validateOrderDiscountEligibility(
+        order,
+        customer,
+        new Money(500, order.totalAmount.currency), // 最少500元
+        3 // 最少3个订单
+      )
+    ) {
+      // 普通客户享受5%折扣
+      return order.subtotalAmount.multiply(0.05);
+    }
+
+    return Money.zero(order.totalAmount.currency);
+  }
+
+  /**
+   * 检查订单是否可以享受急速配送
+   */
+  public static canUseExpressDelivery(order: Order): boolean {
+    const eligibleCities = ["北京", "上海", "广州", "深圳", "杭州"];
+    const maxWeight = 10000; // 10kg
+    const additionalFee = new Money(50, order.totalAmount.currency);
+
+    return this.specificationService.validateExpressDeliveryEligibility(
+      order,
+      eligibleCities,
+      maxWeight,
+      additionalFee
+    );
   }
 
   /**
@@ -204,24 +314,44 @@ export class OrderService {
     shippingMethod: "standard" | "express" | "overnight"
   ): Date {
     const now = new Date();
-    let daysToAdd: number;
+    let daysToAdd = 0;
 
     switch (shippingMethod) {
-      case "overnight":
-        daysToAdd = 1;
-        break;
-      case "express":
+      case "standard":
         daysToAdd = 3;
         break;
-      case "standard":
-      default:
-        daysToAdd = 7;
+      case "express":
+        daysToAdd = this.canUseExpressDelivery(order) ? 1 : 2;
+        break;
+      case "overnight":
+        daysToAdd = 1;
         break;
     }
 
     const deliveryDate = new Date(now);
     deliveryDate.setDate(now.getDate() + daysToAdd);
-
     return deliveryDate;
+  }
+
+  /**
+   * 获取订单推荐的配送方式
+   */
+  public static getRecommendedShippingMethod(
+    order: Order,
+    customer: User
+  ): "standard" | "express" | "overnight" {
+    // 根据订单价值和客户等级推荐配送方式
+    const orderValue = order.totalAmount;
+    const highValueThreshold = new Money(1000, orderValue.currency);
+
+    if (orderValue.isGreaterThan(highValueThreshold)) {
+      return "express";
+    }
+
+    if (this.canUseExpressDelivery(order)) {
+      return "express";
+    }
+
+    return "standard";
   }
 }

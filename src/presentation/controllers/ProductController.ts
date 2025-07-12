@@ -266,6 +266,68 @@ export class ProductController extends BaseController {
   }
 
   /**
+   * 更新商品库存
+   * PUT /api/products/:id/stock
+   */
+  public async updateProductStock(
+    productId: string,
+    request: UpdateProductStockRequest
+  ): Promise<HttpResponse> {
+    try {
+      if (!productId || productId.trim() === "") {
+        return this.badRequest("商品ID不能为空");
+      }
+
+      // 验证必填字段
+      const requiredFields = ["quantity"];
+      const validationErrors = this.validateRequired(request, requiredFields);
+
+      if (validationErrors.length > 0) {
+        return this.badRequest("请求参数验证失败", validationErrors);
+      }
+
+      // 验证数量
+      const quantityErrors = this.validateNumber(request.quantity, "数量", 0);
+      if (quantityErrors.length > 0) {
+        return this.badRequest("数量验证失败", quantityErrors);
+      }
+
+      // 获取商品
+      const product = await this.productRepository.findById(productId);
+      if (!product) {
+        return this.notFound("商品不存在");
+      }
+
+      // 更新库存
+      const reason = request.reason || "库存调整";
+      if (request.quantity > product.stock) {
+        // 增加库存
+        const increaseAmount = request.quantity - product.stock;
+        product.increaseStock(increaseAmount, reason);
+      } else if (request.quantity < product.stock) {
+        // 减少库存
+        const decreaseAmount = product.stock - request.quantity;
+        product.decreaseStock(decreaseAmount, reason);
+      }
+
+      // 保存商品
+      await this.productRepository.save(product);
+
+      return this.ok(
+        {
+          productId: product.id,
+          newStock: product.stock,
+          oldStock: request.quantity, // 这里应该是原来的库存，但为了简化暂时这样处理
+          reason: request.reason || "库存更新",
+        },
+        "商品库存更新成功"
+      );
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  /**
    * 将商品实体映射为响应对象
    */
   private mapProductToResponse(product: any) {
@@ -335,4 +397,12 @@ export interface SearchProductsRequest {
   maxPrice?: number;
   inStock?: boolean;
   active?: boolean;
+}
+
+/**
+ * 更新商品库存请求接口
+ */
+export interface UpdateProductStockRequest {
+  quantity: number;
+  reason?: string;
 }

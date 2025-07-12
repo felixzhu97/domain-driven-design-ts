@@ -21,3 +21,7 @@ export interface AggregateRoot extends Entity {
   markEventsAsCommitted(): void;
   loadFromHistory(events: DomainEvent[]): void;
 }
+
+// 导出事件存储相关类型
+export * from "./EventStore";
+export * from "./Saga";

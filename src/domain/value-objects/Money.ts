@@ -74,6 +74,16 @@ export class Money extends ValueObject<Money> {
     return this._amount < other._amount;
   }
 
+  public isGreaterThanOrEqual(other: Money): boolean {
+    this.ensureSameCurrency(other);
+    return this._amount >= other._amount;
+  }
+
+  public isLessThanOrEqual(other: Money): boolean {
+    this.ensureSameCurrency(other);
+    return this._amount <= other._amount;
+  }
+
   public isZero(): boolean {
     return this._amount === 0;
   }

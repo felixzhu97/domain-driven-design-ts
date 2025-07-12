@@ -7,6 +7,7 @@ export * from "./domain/entities";
 export * from "./domain/events";
 export * from "./domain/services";
 export * from "./domain/repositories";
+export * from "./domain/specifications";
 
 // 导出共享类型
 export * from "./shared/types";
@@ -25,8 +26,9 @@ console.log("  - 实体 (Entities): User, Product, Order, OrderItem");
 console.log("  - 聚合根 (Aggregate Roots): User, Product, Order");
 console.log("  - 领域事件 (Domain Events): 用户、商品、订单相关事件");
 console.log(
-  "  - 领域服务 (Domain Services): OrderService, InventoryService, PriceCalculationService, UserRegistrationService"
+  "  - 领域服务 (Domain Services): OrderService, InventoryService, PriceCalculationService, UserRegistrationService, SpecificationService"
 );
+console.log("  - 领域规约 (Domain Specifications): 封装复杂业务规则的规约模式");
 console.log("  - 仓储接口 (Repository Interfaces): 数据访问抽象层");
 console.log("");
 console.log("💡 运行演示: DemoService.runDemo()");
