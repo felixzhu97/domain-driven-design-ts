@@ -25,3 +25,7 @@ export interface AggregateRoot extends Entity {
 // 导出事件存储相关类型
 export * from "./EventStore";
 export * from "./Saga";
+
+// 导出工厂模式相关类型
+export * from "../domain/factories/DomainFactory";
+export * from "../domain/factories/FactoryRegistry";
