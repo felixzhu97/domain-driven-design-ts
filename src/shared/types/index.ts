@@ -35,3 +35,14 @@ export * from "../errors/DomainError";
 export * from "../errors/ApplicationError";
 export * from "../errors/ErrorHandler";
 export * from "../errors/ErrorRecovery";
+
+// 导出聚合边界设计相关类型
+export * from "../../domain/aggregate-design/AggregateBoundaryGuidelines";
+
+// 导出支付相关类型
+export {
+  PaymentMethod,
+  PaymentType,
+} from "../../domain/value-objects/PaymentMethod";
+export { Payment, PaymentStatus } from "../../domain/entities/Payment";
+export * from "../../domain/events/PaymentEvents";
