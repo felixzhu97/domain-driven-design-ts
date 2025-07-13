@@ -46,3 +46,8 @@ export {
 } from "../../domain/value-objects/PaymentMethod";
 export { Payment, PaymentStatus } from "../../domain/entities/Payment";
 export * from "../../domain/events/PaymentEvents";
+
+// 导出防腐层相关类型
+export * from "../../infrastructure/anti-corruption/AntiCorruptionLayer";
+export * from "../../infrastructure/anti-corruption/PaymentGatewayAdapter";
+export * from "../../infrastructure/external-systems/ExternalSystemMocks";
