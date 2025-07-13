@@ -89,21 +89,45 @@ export class Payment extends AggregateRoot {
     this._amount = props.amount;
     this._paymentMethod = props.paymentMethod;
     this._status = props.status;
-    this._transactionId = props.transactionId;
-    this._gatewayOrderId = props.gatewayOrderId;
-    this._description = props.description;
+    if (props.transactionId !== undefined) {
+      this._transactionId = props.transactionId;
+    }
+    if (props.gatewayOrderId !== undefined) {
+      this._gatewayOrderId = props.gatewayOrderId;
+    }
+    if (props.description !== undefined) {
+      this._description = props.description;
+    }
     this._metadata = props.metadata || {};
     this._createdAt = props.createdAt;
-    this._processingStartedAt = props.processingStartedAt;
-    this._succeededAt = props.succeededAt;
-    this._failedAt = props.failedAt;
-    this._cancelledAt = props.cancelledAt;
-    this._timeoutAt = props.timeoutAt;
-    this._failureReason = props.failureReason;
-    this._errorCode = props.errorCode;
-    this._gatewayResponse = props.gatewayResponse;
+    if (props.processingStartedAt !== undefined) {
+      this._processingStartedAt = props.processingStartedAt;
+    }
+    if (props.succeededAt !== undefined) {
+      this._succeededAt = props.succeededAt;
+    }
+    if (props.failedAt !== undefined) {
+      this._failedAt = props.failedAt;
+    }
+    if (props.cancelledAt !== undefined) {
+      this._cancelledAt = props.cancelledAt;
+    }
+    if (props.timeoutAt !== undefined) {
+      this._timeoutAt = props.timeoutAt;
+    }
+    if (props.failureReason !== undefined) {
+      this._failureReason = props.failureReason;
+    }
+    if (props.errorCode !== undefined) {
+      this._errorCode = props.errorCode;
+    }
+    if (props.gatewayResponse !== undefined) {
+      this._gatewayResponse = props.gatewayResponse;
+    }
     this._refunds = [...props.refunds];
-    this._expiresAt = props.expiresAt;
+    if (props.expiresAt !== undefined) {
+      this._expiresAt = props.expiresAt;
+    }
 
     // 如果是新创建的支付，发布事件
     if (!id) {
@@ -252,7 +276,9 @@ export class Payment extends AggregateRoot {
 
     this._status = PaymentStatus.PROCESSING;
     this._transactionId = transactionId.trim();
-    this._gatewayOrderId = gatewayOrderId?.trim();
+    if (gatewayOrderId !== undefined) {
+      this._gatewayOrderId = gatewayOrderId.trim();
+    }
     this._processingStartedAt = new Date();
 
     this.addEvent(
@@ -276,7 +302,9 @@ export class Payment extends AggregateRoot {
 
     this._status = PaymentStatus.SUCCEEDED;
     this._succeededAt = new Date();
-    this._gatewayResponse = gatewayResponse;
+    if (gatewayResponse !== undefined) {
+      this._gatewayResponse = gatewayResponse;
+    }
 
     this.addEvent(
       new PaymentSucceededEvent(
@@ -285,7 +313,7 @@ export class Payment extends AggregateRoot {
         this._transactionId,
         this._amount,
         this._succeededAt,
-        gatewayResponse
+        gatewayResponse || {}
       )
     );
   }
@@ -395,7 +423,7 @@ export class Payment extends AggregateRoot {
       throw new Error("退款金额不能超过可退款余额");
     }
 
-    if (!refundAmount.currency.equals(this._amount.currency)) {
+    if (refundAmount.currency !== this._amount.currency) {
       throw new Error("退款货币类型必须与原支付货币类型一致");
     }
 

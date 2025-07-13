@@ -51,3 +51,19 @@ export * from "../../domain/events/PaymentEvents";
 export * from "../../infrastructure/anti-corruption/AntiCorruptionLayer";
 export * from "../../infrastructure/anti-corruption/PaymentGatewayAdapter";
 export * from "../../infrastructure/external-systems/ExternalSystemMocks";
+
+// 导出界限上下文映射相关类型
+export * from "../../domain/bounded-context/BoundedContext";
+export {
+  ContextMappingManager,
+  MappingAnalysisResult,
+  MappingTopology,
+  ValidationResult,
+  OptimizationResult,
+  HealthStatus,
+  TopologyNode,
+  TopologyEdge,
+  TopologyCluster,
+  TopologyMetrics,
+  ValidationIssue,
+} from "../../domain/bounded-context/ContextMappingManager";

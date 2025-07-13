@@ -1,145 +1,194 @@
-import { DomainEvent, EntityId } from "../../shared/types";
-import { Money } from "../value-objects";
-import { PaymentType } from "../value-objects/PaymentMethod";
+import { DomainEvent } from "../../shared/types";
+import { Money } from "../value-objects/Money";
+import { PaymentMethod } from "../value-objects/PaymentMethod";
+import { PaymentStatus } from "../entities/Payment";
+import { v4 as uuidv4 } from "uuid";
 
-/**
- * 支付相关领域事件
- */
-
+// 支付创建事件
 export class PaymentCreatedEvent implements DomainEvent {
-  public readonly eventType = "PaymentCreated";
-  public readonly occurredOn: Date;
+  readonly eventId: string;
+  readonly eventVersion: number;
+  readonly eventType: string;
+  readonly occurredOn: Date;
 
   constructor(
-    public readonly aggregateId: EntityId,
-    public readonly orderId: EntityId,
-    public readonly customerId: EntityId,
+    public readonly paymentId: string,
+    public readonly orderId: string,
+    public readonly customerId: string,
     public readonly amount: Money,
-    public readonly paymentMethod: PaymentType
+    public readonly paymentMethod: string
   ) {
+    this.eventId = uuidv4();
+    this.eventVersion = 1;
+    this.eventType = "PaymentCreated";
     this.occurredOn = new Date();
   }
 }
 
+// 支付开始处理事件
 export class PaymentProcessingStartedEvent implements DomainEvent {
-  public readonly eventType = "PaymentProcessingStarted";
-  public readonly occurredOn: Date;
+  readonly eventId: string;
+  readonly eventVersion: number;
+  readonly eventType: string;
+  readonly occurredOn: Date;
 
   constructor(
-    public readonly aggregateId: EntityId,
-    public readonly orderId: EntityId,
-    public readonly transactionId: string,
+    public readonly paymentId: string,
+    public readonly orderId: string,
+    public readonly gatewayOrderId: string,
     public readonly processingStartedAt: Date
   ) {
+    this.eventId = uuidv4();
+    this.eventVersion = 1;
+    this.eventType = "PaymentProcessingStarted";
     this.occurredOn = new Date();
   }
 }
 
+// 支付成功事件
 export class PaymentSucceededEvent implements DomainEvent {
-  public readonly eventType = "PaymentSucceeded";
-  public readonly occurredOn: Date;
+  readonly eventId: string;
+  readonly eventVersion: number;
+  readonly eventType: string;
+  readonly occurredOn: Date;
 
   constructor(
-    public readonly aggregateId: EntityId,
-    public readonly orderId: EntityId,
+    public readonly paymentId: string,
+    public readonly orderId: string,
     public readonly transactionId: string,
     public readonly amount: Money,
-    public readonly paidAt: Date,
-    public readonly gatewayResponse?: Record<string, unknown>
+    public readonly succeededAt: Date,
+    public readonly gatewayResponse: Record<string, unknown>
   ) {
+    this.eventId = uuidv4();
+    this.eventVersion = 1;
+    this.eventType = "PaymentSucceeded";
     this.occurredOn = new Date();
   }
 }
 
+// 支付失败事件
 export class PaymentFailedEvent implements DomainEvent {
-  public readonly eventType = "PaymentFailed";
-  public readonly occurredOn: Date;
+  readonly eventId: string;
+  readonly eventVersion: number;
+  readonly eventType: string;
+  readonly occurredOn: Date;
 
   constructor(
-    public readonly aggregateId: EntityId,
-    public readonly orderId: EntityId,
-    public readonly transactionId: string,
+    public readonly paymentId: string,
+    public readonly orderId: string,
     public readonly failureReason: string,
     public readonly errorCode: string,
     public readonly failedAt: Date,
-    public readonly gatewayResponse?: Record<string, unknown>
+    public readonly gatewayResponse: Record<string, unknown>
   ) {
+    this.eventId = uuidv4();
+    this.eventVersion = 1;
+    this.eventType = "PaymentFailed";
     this.occurredOn = new Date();
   }
 }
 
+// 支付取消事件
 export class PaymentCancelledEvent implements DomainEvent {
-  public readonly eventType = "PaymentCancelled";
-  public readonly occurredOn: Date;
+  readonly eventId: string;
+  readonly eventVersion: number;
+  readonly eventType: string;
+  readonly occurredOn: Date;
 
   constructor(
-    public readonly aggregateId: EntityId,
-    public readonly orderId: EntityId,
-    public readonly transactionId: string,
-    public readonly cancellationReason: string,
+    public readonly paymentId: string,
+    public readonly orderId: string,
+    public readonly reason: string,
     public readonly cancelledAt: Date
   ) {
+    this.eventId = uuidv4();
+    this.eventVersion = 1;
+    this.eventType = "PaymentCancelled";
     this.occurredOn = new Date();
   }
 }
 
+// 退款发起事件
 export class RefundInitiatedEvent implements DomainEvent {
-  public readonly eventType = "RefundInitiated";
-  public readonly occurredOn: Date;
+  readonly eventId: string;
+  readonly eventVersion: number;
+  readonly eventType: string;
+  readonly occurredOn: Date;
 
   constructor(
-    public readonly aggregateId: EntityId,
-    public readonly originalPaymentId: EntityId,
-    public readonly refundAmount: Money,
-    public readonly refundReason: string,
-    public readonly refundId: string
+    public readonly paymentId: string,
+    public readonly refundId: string,
+    public readonly amount: Money,
+    public readonly reason: string,
+    public readonly initiatedAt: Date
   ) {
+    this.eventId = uuidv4();
+    this.eventVersion = 1;
+    this.eventType = "RefundInitiated";
     this.occurredOn = new Date();
   }
 }
 
+// 退款完成事件
 export class RefundCompletedEvent implements DomainEvent {
-  public readonly eventType = "RefundCompleted";
-  public readonly occurredOn: Date;
+  readonly eventId: string;
+  readonly eventVersion: number;
+  readonly eventType: string;
+  readonly occurredOn: Date;
 
   constructor(
-    public readonly aggregateId: EntityId,
+    public readonly paymentId: string,
     public readonly refundId: string,
-    public readonly refundAmount: Money,
+    public readonly amount: Money,
     public readonly completedAt: Date,
-    public readonly gatewayResponse?: Record<string, unknown>
+    public readonly gatewayResponse: Record<string, unknown>
   ) {
+    this.eventId = uuidv4();
+    this.eventVersion = 1;
+    this.eventType = "RefundCompleted";
     this.occurredOn = new Date();
   }
 }
 
+// 退款失败事件
 export class RefundFailedEvent implements DomainEvent {
-  public readonly eventType = "RefundFailed";
-  public readonly occurredOn: Date;
+  readonly eventId: string;
+  readonly eventVersion: number;
+  readonly eventType: string;
+  readonly occurredOn: Date;
 
   constructor(
-    public readonly aggregateId: EntityId,
+    public readonly paymentId: string,
     public readonly refundId: string,
-    public readonly refundAmount: Money,
-    public readonly failureReason: string,
+    public readonly amount: Money,
+    public readonly reason: string,
     public readonly errorCode: string,
     public readonly failedAt: Date
   ) {
+    this.eventId = uuidv4();
+    this.eventVersion = 1;
+    this.eventType = "RefundFailed";
     this.occurredOn = new Date();
   }
 }
 
+// 支付超时事件
 export class PaymentTimeoutEvent implements DomainEvent {
-  public readonly eventType = "PaymentTimeout";
-  public readonly occurredOn: Date;
+  readonly eventId: string;
+  readonly eventVersion: number;
+  readonly eventType: string;
+  readonly occurredOn: Date;
 
   constructor(
-    public readonly aggregateId: EntityId,
-    public readonly orderId: EntityId,
-    public readonly transactionId: string,
+    public readonly paymentId: string,
+    public readonly orderId: string,
     public readonly timeoutAt: Date,
-    public readonly timeoutReason: string
+    public readonly reason: string
   ) {
+    this.eventId = uuidv4();
+    this.eventVersion = 1;
+    this.eventType = "PaymentTimeout";
     this.occurredOn = new Date();
   }
 }

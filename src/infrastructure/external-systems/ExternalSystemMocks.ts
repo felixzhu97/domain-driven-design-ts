@@ -559,7 +559,7 @@ export class MockLogisticsSystem implements ThirdPartyLogisticsSystem {
       "配送中",
       "客户签收",
     ];
-    return locations[Math.floor(Math.random() * locations.length)];
+    return locations[Math.floor(Math.random() * locations.length)] || "配送中";
   }
 
   private delay(ms: number): Promise<void> {

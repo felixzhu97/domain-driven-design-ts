@@ -33,7 +33,9 @@ export class PaymentMethod {
     this._provider = props.provider;
     this._accountInfo = props.accountInfo;
     this._isDefault = props.isDefault;
-    this._expiryDate = props.expiryDate ?? undefined;
+    if (props.expiryDate !== undefined) {
+      this._expiryDate = props.expiryDate;
+    }
     this._metadata = props.metadata || {};
   }
 
