@@ -41,6 +41,12 @@ export class Money extends ValueObject<Money> {
     if (!currency) {
       throw new Error("货币类型不能为空");
     }
+
+    // 验证币种是否支持
+    const supportedCurrencies: Currency[] = ["CNY", "USD", "EUR", "JPY"];
+    if (!supportedCurrencies.includes(currency)) {
+      throw new Error("不支持的币种");
+    }
   }
 
   public add(other: Money): Money {

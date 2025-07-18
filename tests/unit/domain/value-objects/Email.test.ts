@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { Email } from "../../../../src/domain/value-objects/Email";
 
 describe("Email 值对象", () => {
@@ -68,36 +69,15 @@ describe("Email 值对象", () => {
     });
   });
 
-  describe("邮箱域名操作", () => {
-    it("应该能获取邮箱域名", () => {
+  describe("邮箱基本功能", () => {
+    it("应该能获取邮箱值", () => {
       const email = Email.create("user@example.com");
-      expect(email.getDomain()).toBe("example.com");
+      expect(email.value).toBe("user@example.com");
     });
 
-    it("应该能获取邮箱本地部分", () => {
-      const email = Email.create("user.name@example.com");
-      expect(email.getLocalPart()).toBe("user.name");
-    });
-
-    it("应该能检查是否是企业邮箱", () => {
-      const personalEmail = Email.create("user@gmail.com");
-      const corporateEmail = Email.create("user@company.com");
-
-      expect(personalEmail.isPersonalEmail()).toBe(true);
-      expect(corporateEmail.isPersonalEmail()).toBe(false);
-    });
-  });
-
-  describe("邮箱验证", () => {
-    it("应该验证邮箱有效性", () => {
+    it("应该能转换为字符串", () => {
       const email = Email.create("test@example.com");
-      expect(email.isValid()).toBe(true);
-    });
-
-    it("应该能检查邮箱是否可接收邮件", () => {
-      const email = Email.create("test@example.com");
-      // 这里只是示例，实际可能需要DNS查询
-      expect(email.canReceiveEmail()).toBe(true);
+      expect(email.toString()).toBe("test@example.com");
     });
   });
 

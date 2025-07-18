@@ -160,7 +160,7 @@ export class User extends AggregateRoot {
 
   public changePassword(newPasswordHash: string): void {
     if (!newPasswordHash || newPasswordHash.trim().length === 0) {
-      throw new Error("密码哈希不能为空");
+      throw new Error("密码不能为空");
     }
 
     this._passwordHash = newPasswordHash;
@@ -190,11 +190,25 @@ export class User extends AggregateRoot {
     passwordHash: string,
     initialAddress?: Address
   ): User {
+    // 验证用户名
+    if (!name || name.trim().length === 0) {
+      throw new Error("用户名不能为空");
+    }
+
+    if (name.length > 100) {
+      throw new Error("用户名长度不能超过100个字符");
+    }
+
+    // 验证密码
+    if (!passwordHash || passwordHash.trim().length === 0) {
+      throw new Error("密码不能为空");
+    }
+
     const addresses = initialAddress ? [initialAddress] : [];
 
     return new User({
       email,
-      name,
+      name: name.trim(),
       passwordHash,
       status: UserStatus.ACTIVE,
       addresses,

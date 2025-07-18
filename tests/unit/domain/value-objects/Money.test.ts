@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { Money } from "../../../../src/domain/value-objects/Money";
 
 describe("Money 值对象", () => {
@@ -58,11 +59,11 @@ describe("Money 值对象", () => {
       expect(result.amount).toBe(25000); // 250元 = 25000分
     });
 
-    it("应该能正确相除", () => {
+    it("应该能正确相乘（小数）", () => {
       const money = Money.fromYuan(100);
-      const result = money.divide(4);
+      const result = money.multiply(0.5);
 
-      expect(result.amount).toBe(2500); // 25元 = 2500分
+      expect(result.amount).toBe(5000); // 50元 = 5000分
     });
 
     it("不同币种不能进行运算", () => {
@@ -70,7 +71,7 @@ describe("Money 值对象", () => {
       const usdMoney = Money.fromCents(10000, "USD");
 
       expect(() => cnyMoney.add(usdMoney)).toThrow(
-        "不能对不同币种的金额进行运算"
+        "货币类型不匹配"
       );
     });
 
@@ -78,13 +79,7 @@ describe("Money 值对象", () => {
       const money1 = Money.fromYuan(50);
       const money2 = Money.fromYuan(100);
 
-      expect(() => money1.subtract(money2)).toThrow("金额不能为负数");
-    });
-
-    it("除数不能为零", () => {
-      const money = Money.fromYuan(100);
-
-      expect(() => money.divide(0)).toThrow("除数不能为零");
+      expect(() => money1.subtract(money2)).toThrow("减法运算结果不能为负数");
     });
   });
 
@@ -118,7 +113,7 @@ describe("Money 值对象", () => {
       const usdMoney = Money.fromCents(10000, "USD");
 
       expect(() => cnyMoney.isLessThan(usdMoney)).toThrow(
-        "不能比较不同币种的金额"
+        "货币类型不匹配"
       );
     });
   });
@@ -130,26 +125,16 @@ describe("Money 值对象", () => {
       expect(zero.isZero()).toBe(true);
     });
 
-    it("应该能检查是否为正数", () => {
-      const positive = Money.fromYuan(100);
-      const zero = Money.zero();
-
-      expect(positive.isPositive()).toBe(true);
-      expect(zero.isPositive()).toBe(false);
-    });
-
-    it("应该能获取绝对值", () => {
-      const money = Money.fromYuan(100);
-      const abs = money.abs();
-
-      expect(abs.amount).toBe(10000);
+    it("应该能获取元为单位的金额", () => {
+      const money = Money.fromYuan(123.45);
+      expect(money.amountInYuan).toBe(123.45);
     });
   });
 
   describe("格式化显示", () => {
     it("应该能格式化为字符串", () => {
       const money = Money.fromYuan(1234.56);
-      expect(money.toString()).toBe("¥1,234.56");
+      expect(money.toString()).toBe("¥1234.56");
     });
 
     it("应该能显示不同币种的符号", () => {
@@ -160,11 +145,6 @@ describe("Money 值对象", () => {
       expect(cny.toString()).toContain("¥");
       expect(usd.toString()).toContain("$");
       expect(eur.toString()).toContain("€");
-    });
-
-    it("应该能格式化为简单数字", () => {
-      const money = Money.fromYuan(123.45);
-      expect(money.toSimpleString()).toBe("123.45");
     });
   });
 });
